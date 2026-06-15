@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Line — City Metro</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script>const API_BASE='https://metro-alerts.felixfeger46.workers.dev'.replace(/\/+$/,'');</script>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:Helvetica Neue,Helvetica,Arial,sans-serif;background:#f3f3f3;color:#1a1a1a;min-height:100vh}
+  header{background:#0f172a;height:60px;display:flex;align-items:center;padding:0 20px;gap:12px}
+  .hdr-logo{display:flex;align-items:center;gap:10px;text-decoration:none}
+  .hdr-logo img{width:36px;height:36px;object-fit:contain;filter:invert(1)}
+  .hdr-title{color:#fff;font-size:20px;font-weight:700}
+  .back-bar{background:#fff;border-bottom:1px solid #e2e8f0;padding:12px 20px}
+  .back-link{font-size:14px;color:#3b82f6;text-decoration:none}
+  .back-link:hover{text-decoration:underline}
+
+  /* LINE HERO */
+  .line-hero{background:#1a1a1a;padding:24px 20px 0;color:#fff}
+  .line-hero-inner{max-width:680px;margin:0 auto}
+  .line-badge-large{width:64px;height:64px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:28px;font-weight:700;color:#fff;margin-bottom:12px;overflow:hidden;flex-shrink:0}
+  .line-badge-large img{width:64px;height:64px;object-fit:cover;border-radius:50%}
+  .line-hero-name{font-size:28px;font-weight:700;margin-bottom:20px}
+
+  /* TABS */
+  .tabs{display:flex;gap:2px;max-width:680px;margin:0 auto}
+  .tab{padding:12px 20px;font-size:15px;font-weight:600;color:#94a3b8;cursor:pointer;border-bottom:3px solid transparent;transition:all .15s}
+  .tab.active{color:#fff;border-bottom-color:#fff}
+  .tab-count{background:#ef4444;color:#fff;font-size:11px;font-weight:700;padding:1px 7px;border-radius:999px;margin-left:6px}
+
+  .page{max-width:680px;margin:0 auto;padding:24px 16px 48px}
+  .card{background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,.08);margin-bottom:16px}
+  .card-body{padding:20px}
+  .card-section-title{font-size:14px;font-weight:700;color:#64748b;letter-spacing:1px;text-transform:uppercase;margin-bottom:14px}
+
+  /* OVERVIEW */
+  .overview-item{display:flex;align-items:flex-start;gap:14px;margin-bottom:20px}
+  .ov-icon{font-size:22px;flex-shrink:0;margin-top:1px}
+  .ov-label{font-size:14px;font-weight:700;margin-bottom:3px}
+  .ov-value{font-size:14px;color:#475569}
+  .trip-btn{display:flex;align-items:center;justify-content:center;gap:8px;background:#0f172a;color:#fff;text-decoration:none;padding:14px 24px;border-radius:10px;font-size:15px;font-weight:700;margin-top:8px;transition:background .15s}
+  .trip-btn:hover{background:#1e293b}
+
+  /* ALERTS */
+  .alert-item{display:flex;align-items:flex-start;gap:12px;padding:14px 0;border-bottom:1px solid #f3f3f3;text-decoration:none;color:inherit}
+  .alert-item:last-child{border-bottom:0}
+  .alert-item:hover{opacity:.8}
+  .alert-dot{width:10px;height:10px;border-radius:50%;margin-top:4px;flex-shrink:0}
+  .ad-minor{background:#ca8a04}.ad-major{background:#ea580c}.ad-critical,.ad-emergency{background:#dc2626}.ad-maint{background:#7c3aed}
+  .alert-title{font-size:14px;font-weight:600;margin-bottom:3px}
+  .alert-meta{font-size:12px;color:#94a3b8}
+  .badge{display:inline-block;font-size:10px;font-weight:700;padding:2px 8px;border-radius:999px;text-transform:uppercase;margin-right:4px}
+  .b-minor{background:#fef9c3;color:#ca8a04}.b-major{background:#ffedd5;color:#ea580c}
+  .b-critical,.b-emergency{background:#fee2e2;color:#dc2626}.b-maint{background:#ede9fe;color:#7c3aed}
+  .b-status{background:#f1f5f9;color:#64748b;border:1px solid #e2e8f0}
+  .empty-alerts{text-align:center;padding:32px;color:#94a3b8;font-size:14px}
+  .tab-panel{display:none}.tab-panel.active{display:block}
+  .loading{text-align:center;padding:60px;color:#94a3b8}
+  .error-box{background:#fee2e2;border-radius:12px;padding:24px;text-align:center;color:#dc2626}
+
+  /* STOPS */
+  .stop-list{padding:4px 0}
+  .stop-item{display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid #f3f3f3;font-size:14px}
+  .stop-item:last-child{border-bottom:0}
+  .stop-dot{width:12px;height:12px;border-radius:50%;flex-shrink:0}
+</style>
+</head>
+<body>
+<header>
+  <a href="/" class="hdr-logo">
+    <img src="https://alerts.citymetro.xyz/logo-white.png" alt="City Metro">
+    <span class="hdr-title">Alerts</span>
+  </a>
+</header>
+<div class="back-bar">
+  <a href="../index.html" class="back-link">‹ Back to Alerts</a>
+</div>
+<div id="hero"><div style="background:#1a1a1a;height:140px"></div></div>
+<div class="page" id="page"><div class="loading">Loading…</div></div>
+
+<script>
+const slug=new URLSearchParams(location.search).get('id');
+let lineData=null,lineIncidents=[],lineMaintenance=[];
+
+function fmtTime(iso){
+  if(!iso)return '—';
+  return new Date(iso).toLocaleString('en-US',{dateStyle:'medium',timeStyle:'short',timeZone:'America/Los_Angeles'});
+}
+
+function showTab(name){
+  document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active',t.dataset.tab===name));
+  document.querySelectorAll('.tab-panel').forEach(p=>p.classList.toggle('active',p.id==='panel-'+name));
+}
+
+async function load(){
+  if(!slug){document.getElementById('page').innerHTML='<div class="error-box">No line ID provided.</div>';return;}
+  try{
+    const [lines,incidents,maintenance]=await Promise.all([
+      fetch(`${API_BASE}/api/lines`).then(r=>r.json()),
+      fetch(`${API_BASE}/api/incidents`).then(r=>r.json()),
+      fetch(`${API_BASE}/api/maintenance`).then(r=>r.json()),
+    ]);
+    lineData=lines.find(l=>l.slug===slug||l.id===slug);
+    if(!lineData){document.getElementById('page').innerHTML='<div class="error-box">Line not found.</div>';return;}
+    document.title=`${lineData.name} — City Metro`;
+    lineIncidents=incidents.filter(i=>i.status!=='resolved'&&(i.affectedLines||[]).includes(lineData.id));
+    lineMaintenance=maintenance.filter(m=>m.status!=='completed'&&m.status!=='cancelled'&&(m.affectedLines||[]).includes(lineData.id));
+    const alertTotal=lineIncidents.length+lineMaintenance.length;
+    const badge=lineData.iconUrl
+      ?`<div class="line-badge-large"><img src="${lineData.iconUrl}" alt="${lineData.name}"></div>`
+      :`<div class="line-badge-large" style="background:${lineData.color||'#64748b'}">${(lineData.name||'').charAt(0).toUpperCase()}</div>`;
+
+    document.getElementById('hero').innerHTML=`
+      <div class="line-hero">
+        <div class="line-hero-inner">
+          ${badge}
+          <div class="line-hero-name">${lineData.name}</div>
+        </div>
+        <div class="tabs">
+          <div class="tab active" data-tab="overview" onclick="showTab('overview')">Maps &amp; Schedules</div>
+          <div class="tab" data-tab="alerts" onclick="showTab('alerts')">
+            Alerts ${alertTotal>0?`<span class="tab-count">${alertTotal}</span>`:''}
+          </div>
+        </div>
+      </div>`;
+
+    const stops=lineData.waypoints||[];
+    document.getElementById('page').innerHTML=`
+      <div class="tab-panel active" id="panel-overview">
+        <div class="card">
+          <div class="card-body">
+            <div class="card-section-title">${lineData.name} Overview</div>
+            ${stops.length>=2?`<div class="overview-item">
+              <span class="ov-icon">📍</span>
+              <div>
+                <div class="ov-label">Route</div>
+                <div class="ov-value">Trains run between <strong>${stops[0]}</strong> and <strong>${stops[stops.length-1]}</strong> with ${stops.length} stops.</div>
+              </div>
+            </div>`:''}
+            ${lineData.description?`<div class="overview-item">
+              <span class="ov-icon">ℹ️</span>
+              <div>
+                <div class="ov-label">About</div>
+                <div class="ov-value">${lineData.description}</div>
+              </div>
+            </div>`:''}
+            <a href="https://trip-planner.citymetro.xyz" target="_blank" class="trip-btn">
+              🗺️ Plan Your Trip
+            </a>
+          </div>
+        </div>
+        ${stops.length?`
+        <div class="card">
+          <div class="card-body">
+            <div class="card-section-title">Stations</div>
+            <div class="stop-list">
+              ${stops.map(s=>`
+                <div class="stop-item">
+                  <div class="stop-dot" style="background:${lineData.color||'#64748b'}"></div>
+                  ${s}
+                </div>
+              `).join('')}
+            </div>
+          </div>
+        </div>`:''}
+      </div>
+
+      <div class="tab-panel" id="panel-alerts">
+        ${alertTotal===0?`<div class="card"><div class="card-body"><div class="empty-alerts">✅ No active alerts for ${lineData.name}.</div></div></div>`:''}
+        ${lineIncidents.map(i=>`
+          <a class="alert-item card" style="padding:14px 18px" href="../incident.html?id=${i.id}">
+            <div class="alert-dot ad-${i.level}"></div>
+            <div style="flex:1">
+              <div class="alert-title">${i.title}</div>
+              <div class="alert-meta">
+                <span class="badge b-${i.level}">${i.level}</span>
+                <span class="badge b-status">${(i.status||'').replace(/_/g,' ')}</span>
+              </div>
+            </div>
+            <span style="color:#bbb">›</span>
+          </a>
+        `).join('')}
+        ${lineMaintenance.map(m=>`
+          <a class="alert-item card" style="padding:14px 18px" href="../maintenance.html?id=${m.id}">
+            <div class="alert-dot ad-maint"></div>
+            <div style="flex:1">
+              <div class="alert-title">${m.title}</div>
+              <div class="alert-meta">
+                <span class="badge b-maint">${(m.status||'').replace(/_/g,' ')}</span>
+                <span style="font-size:12px;color:#94a3b8">${fmtTime(m.startTime)} – ${fmtTime(m.endTime)}</span>
+              </div>
+            </div>
+            <span style="color:#bbb">›</span>
+          </a>
+        `).join('')}
+      </div>
+    `;
+  }catch(e){document.getElementById('page').innerHTML=`<div class="error-box">Failed to load: ${e.message}</div>`;}
+}
+load();
+</script>
+</body>
+</html>
