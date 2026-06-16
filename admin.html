@@ -496,6 +496,11 @@
   .stat-label { font-size: 12px; color: var(--muted); margin-top: 2px; }
 
   /* ── LINES EDITOR ────────────────────────────────────────── */
+  .line-card-editor { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 16px; margin-bottom: 12px; }
+  .line-card-row { display: flex; gap: 10px; margin-bottom: 10px; flex-wrap: wrap; align-items: flex-end; }
+  .line-card-row:last-child { margin-bottom: 0; }
+  .lc-field { display: flex; flex-direction: column; gap: 4px; }
+  .lc-label { font-size: 10px; font-weight: 700; letter-spacing: .5px; text-transform: uppercase; color: var(--faint); }
   .line-editor-row {
     display: flex;
     align-items: center;
@@ -978,7 +983,7 @@ function renderLines() {
         <button class="btn btn-blue" onclick="saveLines()">Save Changes</button>
       </div>
     </div>
-    <div style="font-size:13px;color:var(--muted);margin-bottom:20px">Configure metro lines and their stations/waypoints. These are used when creating incidents and maintenance windows.</div>
+    <div style="font-size:13px;color:var(--muted);margin-bottom:20px">Configure lines, their type (Rail / Bus / Accessibility), slug (used in the line page URL), icon, description, and stations/waypoints.</div>
     <div id="linesEditor"></div>
   `;
   renderLinesEditor();
@@ -987,31 +992,63 @@ function renderLines() {
 function renderLinesEditor() {
   const el = document.getElementById('linesEditor');
   el.innerHTML = allLines.map((line, i) => `
-    <div class="line-editor-row">
-      <input type="color" value="${line.color}" class="color-dot" style="background:${line.color}"
-        onchange="allLines[${i}].color=this.value;this.style.background=this.value">
-      <input class="form-input" style="width:160px;flex-shrink:0" value="${line.name}"
-        oninput="allLines[${i}].name=this.value" placeholder="Line name">
-      <div style="flex:1">
-        <div class="wp-tags" id="wpts_${i}">
-          ${(line.waypoints||[]).map((wp, wi) => `
-            <span class="wp-tag">${wp}
-              <span class="wp-tag-del" onclick="removeWaypoint(${i},${wi})">×</span>
-            </span>
-          `).join('')}
+    <div class="line-card-editor">
+      <div class="line-card-row">
+        <div class="lc-field">
+          <span class="lc-label">Color</span>
+          <input type="color" value="${line.color}" class="color-dot" style="background:${line.color}"
+            onchange="allLines[${i}].color=this.value;this.style.background=this.value">
         </div>
-        <div style="display:flex;gap:6px;margin-top:6px">
-          <input class="form-input" style="flex:1;padding:5px 10px;font-size:12px" id="wpInput_${i}" placeholder="Add station…" onkeydown="if(event.key==='Enter')addWaypoint(${i})">
-          <button class="btn btn-ghost btn-sm" onclick="addWaypoint(${i})">+ Add</button>
+        <div class="lc-field" style="flex:1;min-width:160px">
+          <span class="lc-label">Name</span>
+          <input class="form-input" value="${line.name}" oninput="allLines[${i}].name=this.value" placeholder="Line name">
+        </div>
+        <div class="lc-field">
+          <span class="lc-label">Type</span>
+          <select class="form-input" onchange="allLines[${i}].type=this.value">
+            <option value="rail" ${(!line.type||line.type==='rail')?'selected':''}>Rail</option>
+            <option value="bus" ${line.type==='bus'?'selected':''}>Bus</option>
+            <option value="accessibility" ${line.type==='accessibility'?'selected':''}>Accessibility</option>
+          </select>
+        </div>
+        <div class="lc-field" style="width:100px">
+          <span class="lc-label">Slug</span>
+          <input class="form-input" value="${line.slug||''}" oninput="allLines[${i}].slug=this.value" placeholder="a">
+        </div>
+        <button class="btn btn-red btn-sm" onclick="removeLine(${i})">Remove</button>
+      </div>
+      <div class="line-card-row">
+        <div class="lc-field" style="flex:1;min-width:200px">
+          <span class="lc-label">Icon URL (optional)</span>
+          <input class="form-input" value="${line.iconUrl||''}" oninput="allLines[${i}].iconUrl=this.value" placeholder="https://alerts.citymetro.xyz/icons/a.png">
+        </div>
+        <div class="lc-field" style="flex:1;min-width:200px">
+          <span class="lc-label">Description</span>
+          <input class="form-input" value="${line.description||''}" oninput="allLines[${i}].description=this.value" placeholder="Short description shown on the line page">
         </div>
       </div>
-      <button class="btn btn-red btn-sm" onclick="removeLine(${i})">Remove</button>
+      <div class="line-card-row">
+        <div style="flex:1">
+          <span class="lc-label" style="display:block;margin-bottom:6px">Stations / Waypoints</span>
+          <div class="wp-tags" id="wpts_${i}">
+            ${(line.waypoints||[]).map((wp, wi) => `
+              <span class="wp-tag">${wp}
+                <span class="wp-tag-del" onclick="removeWaypoint(${i},${wi})">×</span>
+              </span>
+            `).join('')}
+          </div>
+          <div style="display:flex;gap:6px;margin-top:6px">
+            <input class="form-input" style="flex:1;padding:5px 10px;font-size:12px" id="wpInput_${i}" placeholder="Add station…" onkeydown="if(event.key==='Enter')addWaypoint(${i})">
+            <button class="btn btn-ghost btn-sm" onclick="addWaypoint(${i})">+ Add</button>
+          </div>
+        </div>
+      </div>
     </div>
   `).join('');
 }
 
 function addLine() {
-  allLines.push({ id: `line_${Date.now()}`, name: 'New Line', color: '#64748b', waypoints: [] });
+  allLines.push({ id: `line_${Date.now()}`, name: 'New Line', color: '#64748b', type: 'rail', slug: '', iconUrl: '', description: '', waypoints: [] });
   renderLinesEditor();
 }
 
