@@ -6,30 +6,49 @@
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <script>
   const API_BASE = 'https://ride-metro.felixfeger46.workers.dev'.replace(/\/+$/, '');
+
+  function toggleDropdown(btn){
+    const dd = btn.closest('.nav-dropdown');
+    const wasOpen = dd.classList.contains('open');
+    document.querySelectorAll('.nav-dropdown.open').forEach(d=>d.classList.remove('open'));
+    if(!wasOpen) dd.classList.add('open');
+  }
+  document.addEventListener('click', e=>{
+    if(!e.target.closest('.nav-dropdown')) document.querySelectorAll('.nav-dropdown.open').forEach(d=>d.classList.remove('open'));
+  });
 </script>
 <style>
   *{box-sizing:border-box;margin:0;padding:0}
-  body{font-family:Helvetica Neue,Helvetica,Arial,sans-serif;background:#f3f3f3;color:#1a1a1a;min-height:100vh}
+  body{font-family:Helvetica Neue,Helvetica,Arial,sans-serif;background:#eef3f8;color:#1a1a1a;min-height:100vh}
 
   /* HEADER */
-  header{background:#0f172a;height:60px;display:flex;align-items:center;padding:0 20px;position:sticky;top:0;z-index:100;gap:12px}
-  .hdr-logo{display:flex;align-items:center;gap:10px;text-decoration:none}
-  .hdr-logo img{width:36px;height:36px;object-fit:contain;filter:invert(1)}
-  .hdr-title{color:#fff;font-size:20px;font-weight:700;letter-spacing:.5px}
-  .hdr-right{margin-left:auto;display:flex;align-items:center;gap:10px}
-  .hdr-updated{font-size:11px;color:#64748b;font-family:'JetBrains Mono',monospace}
-  .hdr-admin{font-size:12px;color:#64748b;border:1px solid #1e293b;padding:4px 12px;border-radius:6px;text-decoration:none}
-  .hdr-admin:hover{color:#94a3b8}
-
+  header{background:#ffffff;display:flex;align-items:center;padding:12px 24px;position:sticky;top:0;z-index:100;gap:24px;border-bottom:1px solid #e5e7eb;flex-wrap:wrap}
+  .hdr-logo{display:flex;align-items:center;text-decoration:none}
+  .hdr-logo img{width:42px;height:42px;object-fit:contain}
+  .hdr-nav{display:flex;align-items:center;gap:28px}
+  .nav-link{font-size:15px;color:#16213e;text-decoration:none;background:none;border:none;cursor:pointer;font-family:inherit;display:flex;align-items:center;gap:5px;padding:0}
+  .nav-link:hover{color:#3b6ea5}
+  .dd-arrow{font-size:10px;margin-top:1px;transition:transform .15s}
+  .nav-dropdown{position:relative}
+  .nav-dropdown.open .dd-arrow{transform:rotate(180deg)}
+  .nav-dd-menu{display:none;position:absolute;top:calc(100% + 16px);left:0;background:#fff;border-radius:10px;box-shadow:0 8px 28px rgba(0,0,0,.14);min-width:230px;padding:8px;z-index:50}
+  .nav-dropdown.open .nav-dd-menu{display:block}
+  .nav-dd-menu a{display:block;padding:9px 14px;font-size:14px;color:#16213e;text-decoration:none;border-radius:6px;white-space:nowrap}
+  .nav-dd-menu a:hover{background:#f1f5f9}
+  .hdr-right{margin-left:auto;display:flex;align-items:center;gap:16px}
+  .hdr-updated{font-size:11px;color:#94a3b8;font-family:'JetBrains Mono',monospace}
+  .hdr-admin{font-size:13px;color:#64748b;text-decoration:none}
+  .hdr-admin:hover{color:#1a1a1a}
+  .contact-btn{background:#0f172a;color:#fff;text-decoration:none;font-size:14px;font-weight:600;padding:10px 22px;border-radius:999px;transition:background .15s;white-space:nowrap}
+  .contact-btn:hover{background:#1e293b}
+  
   /* ANNOUNCEMENT */
-  .ann-bar{display:none;align-items:center;justify-content:center;gap:10px;padding:10px 20px;font-size:13px;font-weight:600;position:relative;text-align:center}
-  .ann-bar.type-info{background:#1d4ed8;color:#fff}
-  .ann-bar.type-warning{background:#d97706;color:#fff}
-  .ann-bar.type-critical{background:#dc2626;color:#fff;animation:pulse-bar 2s infinite}
+  .ann-bar{display:none;align-items:center;justify-content:center;gap:10px;padding:11px 20px;font-size:14px;font-weight:700;position:relative;text-align:center;background:#cfe2f7;color:#16213e}
   .ann-bar.show{display:flex}
-  @keyframes pulse-bar{0%,100%{opacity:1}50%{opacity:.85}}
-  .ann-dismiss{position:absolute;right:14px;top:50%;transform:translateY(-50%);background:rgba(255,255,255,.2);border:none;color:#fff;width:22px;height:22px;border-radius:50%;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center}
-
+  .ann-bar a{color:#16213e;text-decoration:underline}
+  .ann-dismiss{position:absolute;right:14px;top:50%;transform:translateY(-50%);background:rgba(0,0,0,.08);border:none;color:#16213e;width:22px;height:22px;border-radius:50%;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center}
+  .ann-dismiss:hover{background:rgba(0,0,0,.15)}
+  
   /* STATUS BANNER */
   .status-banner{padding:16px 20px;display:flex;align-items:center;gap:14px;border-bottom:1px solid #e2e8f0;transition:background .3s}
   .status-banner.operational{background:#f0fdf4;border-color:#bbf7d0}
@@ -163,12 +182,47 @@
 
 <header>
   <a href="/" class="hdr-logo">
-    <img src="https://alerts.citymetro.xyz/logo-white.png" alt="City Metro">
-    <span class="hdr-title">Alerts</span>
+    <img src="https://alerts.citymetro.xyz/logo.png" alt="City Metro">
   </a>
+  <nav class="hdr-nav">
+    <a href="https://citymetro.xyz" class="nav-link">Home</a>
+    <div class="nav-dropdown">
+      <button class="nav-link" onclick="toggleDropdown(this)">About <span class="dd-arrow">⌄</span></button>
+      <div class="nav-dd-menu">
+        <a href="#">Contact</a>
+        <a href="#">Rail and Bus Lines</a>
+        <a href="#">City Metro Shop</a>
+        <a href="#">Transit Museum</a>
+        <a href="#">City Metro Support</a>
+        <a href="#">Republic State Railways</a>
+        <a href="#">City MetroLink</a>
+        <a href="#">Advertising, Sponsorships &amp; Filming</a>
+      </div>
+    </div>
+    <a href="#" class="nav-link">Fares</a>
+    <div class="nav-dropdown">
+      <button class="nav-link" onclick="toggleDropdown(this)">Ride <span class="dd-arrow">⌄</span></button>
+      <div class="nav-dd-menu">
+        <a href="#">Arrivals</a>
+        <a href="#">Metro Map</a>
+        <a href="https://trip-planner.citymetro.xyz">Trip Planner</a>
+        <a href="/">Transit Alerts</a>
+        <a href="#">SkyLink</a>
+      </div>
+    </div>
+    <div class="nav-dropdown">
+      <button class="nav-link" onclick="toggleDropdown(this)">Safety <span class="dd-arrow">⌄</span></button>
+      <div class="nav-dd-menu">
+        <a href="#">Transit Police</a>
+        <a href="#">Lego City Police</a>
+        <a href="#">LCSD</a>
+      </div>
+    </div>
+  </nav>
   <div class="hdr-right">
     <span class="hdr-updated" id="lastUpdated"></span>
-    <a href="admin.html" class="hdr-admin">Admin →</a>
+    <a href="admin.html" class="hdr-admin">Admin</a>
+    <a href="#" class="contact-btn">Contact Us</a>
   </div>
 </header>
 
@@ -485,7 +539,7 @@ async function loadAnnouncement(){
     if(sessionStorage.getItem('ann_dismissed')===d.setAt)return;
     const bar=$('annBar'),txt=$('annText');
     txt.innerHTML=d.link?`<a href="${d.link}" target="_blank">${d.text}</a>`:d.text;
-    bar.className='ann-bar type-'+d.type+' show';
+    bar.className='ann-bar show';
     bar._setAt=d.setAt;
   }catch(e){}
 }
