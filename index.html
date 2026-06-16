@@ -1,121 +1,519 @@
-<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Incident — City Metro Alerts</title>
+<title>City Metro — Alerts</title>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-<script>const API_BASE='https://ride-metro.felixfeger46.workers.dev'.replace(/\/+$/,'');</script>
+<script>
+  const API_BASE = 'https://ride-metro.felixfeger46.workers.dev'.replace(/\/+$/, '');
+</script>
 <style>
   *{box-sizing:border-box;margin:0;padding:0}
   body{font-family:Helvetica Neue,Helvetica,Arial,sans-serif;background:#f3f3f3;color:#1a1a1a;min-height:100vh}
-  header{background:#0f172a;height:60px;display:flex;align-items:center;padding:0 20px;gap:12px}
+
+  /* HEADER */
+  header{background:#0f172a;height:60px;display:flex;align-items:center;padding:0 20px;position:sticky;top:0;z-index:100;gap:12px}
   .hdr-logo{display:flex;align-items:center;gap:10px;text-decoration:none}
   .hdr-logo img{width:36px;height:36px;object-fit:contain;filter:invert(1)}
-  .hdr-title{color:#fff;font-size:20px;font-weight:700}
-  .back-bar{background:#fff;border-bottom:1px solid #e2e8f0;padding:12px 20px}
-  .back-link{font-size:14px;color:#3b82f6;text-decoration:none;display:inline-flex;align-items:center;gap:6px}
-  .back-link:hover{text-decoration:underline}
-  .page{max-width:680px;margin:0 auto;padding:24px 16px 48px}
-  .card{background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,.08);margin-bottom:16px}
-  .card-hdr{padding:16px 20px;border-bottom:1px solid #f3f3f3}
-  .card-body{padding:20px}
-  .level-bar{padding:14px 20px;color:#fff;display:flex;align-items:center;justify-content:space-between;gap:12px}
-  .level-bar.minor{background:#ca8a04}.level-bar.major{background:#ea580c}
-  .level-bar.critical,.level-bar.emergency{background:#dc2626}
-  .level-name{font-size:13px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase}
-  .status-pill{background:rgba(255,255,255,.25);font-size:12px;font-weight:600;padding:3px 12px;border-radius:999px;text-transform:capitalize}
-  .inc-title{font-size:22px;font-weight:700;margin-bottom:8px}
-  .inc-desc{font-size:15px;color:#475569;line-height:1.7}
-  .meta-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:16px}
-  .meta-item{}
-  .meta-label{font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#94a3b8;margin-bottom:3px}
-  .meta-value{font-size:14px;font-weight:600;color:#1a1a1a}
-  .line-tag{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:600;padding:3px 10px;border-radius:999px;color:#fff;margin:2px}
-  .section-title{font-size:14px;font-weight:700;color:#64748b;letter-spacing:1px;text-transform:uppercase;margin-bottom:12px}
-  .timeline-item{display:flex;gap:14px;padding:12px 0;border-bottom:1px solid #f3f3f3}
-  .timeline-item:last-child{border-bottom:0}
-  .tl-dot{width:10px;height:10px;border-radius:50%;background:#3b82f6;margin-top:4px;flex-shrink:0}
-  .tl-time{font-size:11px;font-family:'JetBrains Mono',monospace;color:#94a3b8;white-space:nowrap;flex-shrink:0;margin-top:2px}
-  .tl-status-pill{font-size:11px;font-weight:600;padding:1px 8px;border-radius:999px;background:#f1f5f9;color:#64748b;flex-shrink:0}
-  .tl-msg{font-size:14px;color:#334155;flex:1}
-  .visit-btn{display:inline-block;background:#3b82f6;color:#fff;text-decoration:none;padding:10px 20px;border-radius:8px;font-size:14px;font-weight:600;margin-top:12px}
-  .loading{text-align:center;padding:60px;color:#94a3b8;font-size:15px}
-  .error-box{background:#fee2e2;border-radius:12px;padding:24px;text-align:center;color:#dc2626}
+  .hdr-title{color:#fff;font-size:20px;font-weight:700;letter-spacing:.5px}
+  .hdr-right{margin-left:auto;display:flex;align-items:center;gap:10px}
+  .hdr-updated{font-size:11px;color:#64748b;font-family:'JetBrains Mono',monospace}
+  .hdr-admin{font-size:12px;color:#64748b;border:1px solid #1e293b;padding:4px 12px;border-radius:6px;text-decoration:none}
+  .hdr-admin:hover{color:#94a3b8}
+
+  /* ANNOUNCEMENT */
+  .ann-bar{display:none;align-items:center;justify-content:center;gap:10px;padding:10px 20px;font-size:13px;font-weight:600;position:relative;text-align:center}
+  .ann-bar.type-info{background:#1d4ed8;color:#fff}
+  .ann-bar.type-warning{background:#d97706;color:#fff}
+  .ann-bar.type-critical{background:#dc2626;color:#fff;animation:pulse-bar 2s infinite}
+  .ann-bar.show{display:flex}
+  @keyframes pulse-bar{0%,100%{opacity:1}50%{opacity:.85}}
+  .ann-dismiss{position:absolute;right:14px;top:50%;transform:translateY(-50%);background:rgba(255,255,255,.2);border:none;color:#fff;width:22px;height:22px;border-radius:50%;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center}
+
+  /* STATUS BANNER */
+  .status-banner{padding:16px 20px;display:flex;align-items:center;gap:14px;border-bottom:1px solid #e2e8f0;transition:background .3s}
+  .status-banner.operational{background:#f0fdf4;border-color:#bbf7d0}
+  .status-banner.degraded{background:#fefce8;border-color:#fef08a}
+  .status-banner.partial_outage,.status-banner.major_outage{background:#fff7ed;border-color:#fed7aa}
+  .status-banner.critical{background:#fef2f2;border-color:#fecaca}
+  .status-banner.emergency{background:#450a0a}
+  .status-banner.maintenance,.status-banner.maintenance_active{background:#faf5ff;border-color:#e9d5ff}
+  .status-dot{width:14px;height:14px;border-radius:50%;flex-shrink:0}
+  .status-dot.operational{background:#16a34a}
+  .status-dot.degraded{background:#ca8a04}
+  .status-dot.partial_outage,.status-dot.major_outage{background:#ea580c}
+  .status-dot.critical,.status-dot.emergency{background:#dc2626;animation:sdpulse 1s infinite}
+  .status-dot.maintenance,.status-dot.maintenance_active{background:#7c3aed}
+  @keyframes sdpulse{0%,100%{opacity:1}50%{opacity:.4}}
+  .status-text .st-label{font-size:17px;font-weight:700}
+  .status-text .st-label.operational{color:#16a34a}
+  .status-text .st-label.degraded{color:#ca8a04}
+  .status-text .st-label.partial_outage,.status-text .st-label.major_outage{color:#ea580c}
+  .status-text .st-label.critical{color:#dc2626}
+  .status-text .st-label.emergency{color:#fca5a5}
+  .status-text .st-label.maintenance,.status-text .st-label.maintenance_active{color:#7c3aed}
+  .status-text .st-desc{font-size:13px;color:#64748b;margin-top:2px}
+  .status-banner.emergency .st-desc{color:#fca5a5}
+
+  /* PAGE */
+  .page{max-width:720px;margin:0 auto;padding:24px 16px 48px}
+
+  /* SECTION */
+  .section{margin-bottom:20px;border-radius:12px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,.08)}
+  .section-hdr{background:#1a1a1a;color:#fff;padding:14px 20px;display:flex;align-items:center;gap:10px}
+  .section-hdr-icon{font-size:20px}
+  .section-hdr-title{font-size:18px;font-weight:700;letter-spacing:.3px}
+
+  /* LINE ROWS */
+  .line-row{background:#fff;display:flex;align-items:center;gap:12px;padding:14px 18px;border-bottom:1px solid #efefef;text-decoration:none;color:inherit;transition:background .1s;cursor:pointer}
+  .line-row:last-child{border-bottom:0}
+  .line-row:hover{background:#f9f9f9}
+  .line-badge{width:42px;height:42px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:17px;color:#fff;flex-shrink:0;overflow:hidden}
+  .line-badge img{width:42px;height:42px;object-fit:cover;border-radius:50%}
+  .line-alert-icon{font-size:17px;flex-shrink:0;width:20px;text-align:center}
+  .line-name{flex:1;font-size:16px;font-weight:600}
+  .line-status-text{font-size:12px;font-weight:600;padding:2px 10px;border-radius:999px;flex-shrink:0}
+  .lst-operational{background:#dcfce7;color:#16a34a}
+  .lst-degraded{background:#fef9c3;color:#ca8a04}
+  .lst-major_outage,.lst-partial_outage{background:#ffedd5;color:#ea580c}
+  .lst-critical{background:#fee2e2;color:#dc2626}
+  .lst-emergency{background:#dc2626;color:#fff}
+  .lst-maintenance,.lst-maintenance_active{background:#ede9fe;color:#7c3aed}
+  .line-chevron{color:#bbb;font-size:18px;flex-shrink:0}
+
+  /* BUS GROUPS */
+  .bus-group{background:#fff;border-bottom:1px solid #efefef}
+  .bus-group:last-child{border-bottom:0}
+  .bus-group-hdr{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;cursor:pointer;font-size:15px;font-weight:600}
+  .bus-group-hdr:hover{background:#f9f9f9}
+  .bus-group-body{display:none;padding:0}
+  .bus-group-body.open{display:block}
+  .bus-subrow{display:flex;align-items:center;gap:12px;padding:12px 18px 12px 28px;border-top:1px solid #f3f3f3;text-decoration:none;color:inherit;cursor:pointer}
+  .bus-subrow:hover{background:#f9f9f9}
+
+  /* ACCESSIBILITY */
+  .acc-row{background:#fff;display:flex;align-items:flex-start;gap:12px;padding:14px 18px;border-bottom:1px solid #efefef}
+  .acc-row:last-child{border-bottom:0}
+  .acc-icon{font-size:20px;flex-shrink:0;padding-top:1px}
+  .acc-title{font-size:15px;font-weight:600;margin-bottom:2px}
+  .acc-desc{font-size:13px;color:#64748b}
+
+  /* UPTIME */
+  .uptime-section{background:#fff;border-radius:12px;padding:20px;box-shadow:0 1px 4px rgba(0,0,0,.08);margin-bottom:20px}
+  .uptime-top{display:flex;align-items:baseline;gap:10px;margin-bottom:12px}
+  .uptime-pct{font-size:28px;font-weight:700;color:#16a34a}
+  .uptime-lbl{font-size:13px;color:#64748b}
+  .uptime-grid{display:flex;gap:2px;flex-wrap:wrap}
+  .ud{width:9px;height:24px;border-radius:2px;cursor:pointer;transition:transform .1s;flex-shrink:0;position:relative}
+  .ud:hover{transform:scaleY(1.3)}
+  .ud:hover::after{content:attr(data-tip);position:absolute;bottom:calc(100% + 4px);left:50%;transform:translateX(-50%);background:#0f172a;color:#fff;font-size:10px;white-space:nowrap;padding:3px 7px;border-radius:4px;pointer-events:none;font-family:'JetBrains Mono',monospace;z-index:10}
+  .ud-operational{background:#16a34a}.ud-degraded{background:#ca8a04}
+  .ud-major_outage{background:#ea580c}.ud-critical,.ud-emergency{background:#dc2626}
+  .ud-maintenance,.ud-maintenance_active{background:#7c3aed}
+  .uptime-axis{display:flex;justify-content:space-between;margin-top:5px;font-size:11px;color:#94a3b8;font-family:'JetBrains Mono',monospace}
+
+  /* SUBSCRIBE */
+  .subscribe-box{background:#0f172a;border-radius:12px;padding:28px 24px;color:#fff;margin-bottom:20px}
+  .sub-title{font-size:20px;font-weight:700;margin-bottom:6px}
+  .sub-desc{font-size:13px;color:#94a3b8;margin-bottom:18px}
+  .sub-form{display:flex;gap:8px;flex-wrap:wrap}
+  .sub-form input{flex:1;min-width:180px;background:#1e293b;border:1px solid #334155;border-radius:8px;padding:9px 14px;font-size:14px;color:#fff;font-family:Helvetica Neue,Helvetica,Arial,sans-serif;outline:none}
+  .sub-form input:focus{border-color:#3b82f6}
+  .sub-form input::placeholder{color:#475569}
+  .sub-btn{background:#3b82f6;color:#fff;border:none;padding:9px 20px;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;font-family:Helvetica Neue,Helvetica,Arial,sans-serif}
+  .sub-btn:hover{background:#2563eb}
+  .sub-msg{margin-top:10px;font-size:13px;padding:8px 14px;border-radius:6px;display:none}
+  .sub-msg.success{background:#dcfce7;color:#15803d;display:block}
+  .sub-msg.error{background:#fee2e2;color:#dc2626;display:block}
+
+  /* EMPTY */
+  .empty-row{background:#fff;padding:32px;text-align:center;color:#94a3b8;font-size:14px}
+
+  /* ACTIVE INCIDENTS + MAINTENANCE */
+  .alert-section{background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,.08);margin-bottom:20px}
+  .alert-section-hdr{padding:14px 18px;border-bottom:1px solid #efefef;display:flex;align-items:center;justify-content:space-between}
+  .alert-section-title{font-size:16px;font-weight:700}
+  .alert-count-badge{background:#ef4444;color:#fff;font-size:11px;font-weight:700;padding:2px 8px;border-radius:999px}
+  .alert-item{display:flex;align-items:flex-start;gap:12px;padding:14px 18px;border-bottom:1px solid #f3f3f3;text-decoration:none;color:inherit;cursor:pointer}
+  .alert-item:last-child{border-bottom:0}
+  .alert-item:hover{background:#fafafa}
+  .alert-level-dot{width:10px;height:10px;border-radius:50%;margin-top:5px;flex-shrink:0}
+  .ald-minor{background:#ca8a04}.ald-major{background:#ea580c}.ald-critical,.ald-emergency{background:#dc2626}
+  .alert-item-body{flex:1}
+  .alert-item-title{font-size:14px;font-weight:600;margin-bottom:2px}
+  .alert-item-desc{font-size:12px;color:#64748b}
+  .alert-item-meta{display:flex;gap:6px;margin-top:4px;flex-wrap:wrap}
+  .alert-badge{font-size:10px;font-weight:700;padding:1px 8px;border-radius:999px;text-transform:uppercase}
+  .ab-minor{background:#fef9c3;color:#ca8a04}
+  .ab-major{background:#ffedd5;color:#ea580c}
+  .ab-critical,.ab-emergency{background:#fee2e2;color:#dc2626}
+  .ab-status{background:#f1f5f9;color:#64748b;border:1px solid #e2e8f0}
+  .ab-maint{background:#ede9fe;color:#7c3aed}
+  .alert-item-chevron{color:#bbb;font-size:16px;padding-top:2px;flex-shrink:0}
+
+  footer{text-align:center;font-size:12px;color:#94a3b8;padding:16px;border-top:1px solid #e2e8f0}
+
+  @media(max-width:600px){
+    .hdr-updated{display:none}
+    .page{padding:16px 12px 40px}
+  }
 </style>
 </head>
 <body>
+
 <header>
   <a href="/" class="hdr-logo">
     <img src="https://alerts.citymetro.xyz/logo-white.png" alt="City Metro">
     <span class="hdr-title">Alerts</span>
   </a>
+  <div class="hdr-right">
+    <span class="hdr-updated" id="lastUpdated"></span>
+    <a href="admin.html" class="hdr-admin">Admin →</a>
+  </div>
 </header>
-<div class="back-bar">
-  <a href="index.html" class="back-link">‹ Back to Alerts</a>
+
+<div class="ann-bar" id="annBar">
+  <span id="annText"></span>
+  <button class="ann-dismiss" onclick="dismissAnn()">×</button>
 </div>
-<div class="page" id="page"><div class="loading">Loading incident…</div></div>
+
+<div class="status-banner" id="statusBanner">
+  <div class="status-dot" id="statusDot"></div>
+  <div class="status-text">
+    <div class="st-label" id="statusLabel">Loading…</div>
+    <div class="st-desc" id="statusDesc"></div>
+  </div>
+</div>
+
+<div class="page">
+
+  <!-- Active Incidents -->
+  <div class="alert-section" id="incidentSection" style="display:none">
+    <div class="alert-section-hdr">
+      <span class="alert-section-title">⚠️ Active Incidents</span>
+      <span class="alert-count-badge" id="incidentBadge">0</span>
+    </div>
+    <div id="incidentRows"></div>
+  </div>
+
+  <!-- Active Maintenance -->
+  <div class="alert-section" id="maintenanceSection" style="display:none">
+    <div class="alert-section-hdr">
+      <span class="alert-section-title">🔧 Maintenance</span>
+      <span class="alert-count-badge" style="background:#7c3aed" id="maintenanceBadge">0</span>
+    </div>
+    <div id="maintenanceRows"></div>
+  </div>
+
+  <!-- Rail & Busway -->
+  <div class="section" id="railSection">
+    <div class="section-hdr">
+      <span class="section-hdr-icon">🚇</span>
+      <span class="section-hdr-title">Rail & Busway</span>
+    </div>
+    <div id="railRows"><div class="empty-row">Loading…</div></div>
+  </div>
+
+  <!-- Bus -->
+  <div class="section" id="busSection">
+    <div class="section-hdr">
+      <span class="section-hdr-icon">🚌</span>
+      <span class="section-hdr-title">Bus</span>
+    </div>
+    <div id="busRows"><div class="empty-row">No bus lines configured.</div></div>
+  </div>
+
+  <!-- Accessibility -->
+  <div class="section" id="accessibilitySection">
+    <div class="section-hdr">
+      <span class="section-hdr-icon">♿</span>
+      <span class="section-hdr-title">Accessibility</span>
+    </div>
+    <div id="accessibilityRows"><div class="empty-row">No accessibility alerts.</div></div>
+  </div>
+
+  <!-- Uptime -->
+  <div class="uptime-section">
+    <div class="uptime-top">
+      <span class="uptime-pct" id="uptimePct">—%</span>
+      <span class="uptime-lbl">uptime over the last 90 days</span>
+    </div>
+    <div class="uptime-grid" id="uptimeGrid"></div>
+    <div class="uptime-axis"><span>90 days ago</span><span>Today</span></div>
+  </div>
+
+  <!-- Subscribe -->
+  <div class="subscribe-box">
+    <div class="sub-title">Get Alerts by Email</div>
+    <div class="sub-desc">Subscribe to receive instant notifications for incidents and maintenance.</div>
+    <div class="sub-form">
+      <input type="text" id="subName" placeholder="Your name (optional)">
+      <input type="email" id="subEmail" placeholder="your@email.com">
+      <button class="sub-btn" onclick="doSubscribe()">Subscribe</button>
+    </div>
+    <div class="sub-msg" id="subMsg"></div>
+  </div>
+
+</div>
+
+<footer>City Metro Transit Authority &nbsp;·&nbsp; Status Page &nbsp;·&nbsp; Powered by Cloudflare Pages</footer>
+
 <script>
 const $ = id => document.getElementById(id);
-const id = new URLSearchParams(location.search).get('id');
 
-function fmtTime(iso){
-  if(!iso)return '—';
-  return new Date(iso).toLocaleString('en-US',{dateStyle:'medium',timeStyle:'short',timeZone:'America/Los_Angeles'});
+const STATUS_LABELS = {
+  operational:'All Systems Operational', degraded:'Minor Service Disruption',
+  partial_outage:'Partial Service Disruption', major_outage:'Major Service Disruption',
+  critical:'Critical Service Outage', emergency:'Emergency — Severe Disruption',
+  maintenance:'Upcoming Scheduled Maintenance', maintenance_active:'Maintenance In Progress',
+};
+const STATUS_DESCS = {
+  operational:'All metro lines are running normally.',
+  degraded:'Some services are experiencing minor delays.',
+  partial_outage:'One or more services are partially disrupted.',
+  major_outage:'Significant disruptions affecting multiple services.',
+  critical:'Critical failure. Services are severely impacted.',
+  emergency:'Emergency condition. Please follow official guidance.',
+  maintenance:'Maintenance has been scheduled. Services may be affected.',
+  maintenance_active:'Planned maintenance is currently underway.',
+};
+
+function fmtStatus(s){
+  return {operational:'Normal',degraded:'Delays',partial_outage:'Disrupted',
+    major_outage:'Disrupted',critical:'Outage',emergency:'Emergency',
+    maintenance:'Maintenance',maintenance_active:'In Progress'}[s]||s;
 }
 
-async function load(){
-  if(!id){$('page').innerHTML='<div class="error-box">No incident ID provided.</div>';return;}
+function timeAgo(iso){
+  const m=Math.floor((Date.now()-new Date(iso))/60000);
+  if(m<1)return 'just now';if(m<60)return m+'m ago';
+  const h=Math.floor(m/60);if(h<24)return h+'h ago';
+  return Math.floor(h/24)+'d ago';
+}
+
+function lineBadge(line){
+  if(line.iconUrl){
+    return `<div class="line-badge"><img src="${line.iconUrl}" alt="${line.name}"></div>`;
+  }
+  const letter=(line.name||line.id).replace(/\s*(line|route)\s*/i,'').trim().charAt(0).toUpperCase();
+  return `<div class="line-badge" style="background:${line.color||'#64748b'}">${letter}</div>`;
+}
+
+function lineStatusBadge(status){
+  return `<span class="line-status-text lst-${status}">${fmtStatus(status)}</span>`;
+}
+
+let linesCache=[], incidentsCache=[], maintenanceCache=[];
+
+async function loadAll(){
   try{
-    const [incidents,lines]=await Promise.all([
+    const [status, incidents, maintenance, uptime] = await Promise.all([
+      fetch(`${API_BASE}/api/status`).then(r=>r.json()),
       fetch(`${API_BASE}/api/incidents`).then(r=>r.json()),
-      fetch(`${API_BASE}/api/lines`).then(r=>r.json()),
+      fetch(`${API_BASE}/api/maintenance`).then(r=>r.json()),
+      fetch(`${API_BASE}/api/uptime`).then(r=>r.json()),
     ]);
-    const inc=incidents.find(i=>i.id===id);
-    if(!inc){$('page').innerHTML='<div class="error-box">Incident not found.</div>';return;}
-    document.title=`${inc.title} — City Metro Alerts`;
-    const lineMap=Object.fromEntries((lines||[]).map(l=>[l.id,l]));
-    const lineTags=(inc.affectedLines||[]).map(lid=>{
-      const l=lineMap[lid];
-      return l?`<span class="line-tag" style="background:${l.color}">${l.name}</span>`:`<span class="line-tag" style="background:#64748b">${lid}</span>`;
-    }).join('');
-    const updates=(inc.updates||[]).slice().reverse();
-    $('page').innerHTML=`
-      <div class="card">
-        <div class="level-bar ${inc.level}">
-          <span class="level-name">${inc.level} Incident</span>
-          <span class="status-pill">${(inc.status||'').replace(/_/g,' ')}</span>
-        </div>
-        <div class="card-body">
-          <div class="inc-title">${inc.title}</div>
-          <div class="inc-desc">${inc.description||''}</div>
-          <div class="meta-grid">
-            <div class="meta-item"><div class="meta-label">Reported</div><div class="meta-value">${fmtTime(inc.createdAt)}</div></div>
-            <div class="meta-item"><div class="meta-label">Last Updated</div><div class="meta-value">${fmtTime(inc.updatedAt)}</div></div>
-            <div class="meta-item"><div class="meta-label">Affected Lines</div><div class="meta-value">${lineTags||'—'}</div></div>
-            <div class="meta-item"><div class="meta-label">Affected Stations</div><div class="meta-value">${(inc.affectedWaypoints||[]).join(', ')||'—'}</div></div>
+    linesCache=status.lineStatuses||[];
+    incidentsCache=incidents;
+    maintenanceCache=maintenance;
+    renderStatus(status);
+    renderLines(status.lineStatuses||[]);
+    renderIncidentsList(incidents);
+    renderMaintenanceList(maintenance);
+    renderUptime(uptime);
+    $('lastUpdated').textContent='Updated '+new Date().toLocaleTimeString();
+  }catch(e){
+    console.error(e);
+    $('statusLabel').textContent='Could not load status';
+  }
+}
+
+function renderStatus(s){
+  let st=s.overall||'operational';
+  if(st==='maintenance'&&s.activeMaintenance>0)st='maintenance_active';
+  const css=st.startsWith('maintenance')?'maintenance':st;
+  $('statusBanner').className='status-banner '+css;
+  $('statusDot').className='status-dot '+css;
+  $('statusLabel').className='st-label '+css;
+  $('statusLabel').textContent=STATUS_LABELS[st]||st;
+  $('statusDesc').textContent=STATUS_DESCS[st]||'';
+}
+
+function renderLines(lines){
+  const rail=lines.filter(l=>!l.type||l.type==='rail');
+  const bus=lines.filter(l=>l.type==='bus');
+  const acc=lines.filter(l=>l.type==='accessibility');
+
+  // Rail rows
+  $('railRows').innerHTML = rail.length ? rail.map(line=>`
+    <a class="line-row" href="${line.slug?'lines/line.html?id='+line.slug:'#'}">
+      ${lineBadge(line)}
+      <span class="line-alert-icon">${(line.alertCount||0)>0?'⚠️':''}</span>
+      <span class="line-name">${line.name}</span>
+      ${lineStatusBadge(line.status)}
+      <span class="line-chevron">›</span>
+    </a>
+  `).join('') : '<div class="empty-row">No rail lines configured.</div>';
+
+  // Bus rows (grouped or flat)
+  if(bus.length){
+    const groups={'0-99':[],'100-199':[],'200-299':[],'300+':[]};
+    bus.forEach(l=>{
+      const num=parseInt((l.name||'').replace(/\D/g,''))||0;
+      if(num<100)groups['0-99'].push(l);
+      else if(num<200)groups['100-199'].push(l);
+      else if(num<300)groups['200-299'].push(l);
+      else groups['300+'].push(l);
+      // If no number found, check if it's a named route
+    });
+    // If no numbered groups have items, just show flat list
+    const hasGroups=Object.values(groups).some(g=>g.length>0);
+    if(hasGroups){
+      $('busRows').innerHTML=Object.entries(groups).filter(([,g])=>g.length>0).map(([range,grp])=>`
+        <div class="bus-group">
+          <div class="bus-group-hdr" onclick="toggleGroup(this)">
+            <span>Lines ${range}</span>
+            <span>›</span>
+          </div>
+          <div class="bus-group-body">
+            ${grp.map(line=>`
+              <a class="bus-subrow" href="${line.slug?'lines/line.html?id='+line.slug:'#'}">
+                ${lineBadge(line)}
+                <span class="line-alert-icon">${(line.alertCount||0)>0?'⚠️':''}</span>
+                <span class="line-name">${line.name}</span>
+                ${lineStatusBadge(line.status)}
+                <span class="line-chevron">›</span>
+              </a>
+            `).join('')}
           </div>
         </div>
-      </div>
-      ${updates.length?`
-      <div class="card">
-        <div class="card-body">
-          <div class="section-title">Update Timeline</div>
-          ${updates.map(u=>`
-            <div class="timeline-item">
-              <div class="tl-dot"></div>
-              <div class="tl-time">${fmtTime(u.timestamp)}</div>
-              <span class="tl-status-pill">${(u.status||'').replace(/_/g,' ')}</span>
-              <div class="tl-msg">${u.message}</div>
-            </div>
-          `).join('')}
+      `).join('');
+    } else {
+      $('busRows').innerHTML=bus.map(line=>`
+        <a class="line-row" href="${line.slug?'lines/line.html?id='+line.slug:'#'}">
+          ${lineBadge(line)}
+          <span class="line-alert-icon">${(line.alertCount||0)>0?'⚠️':''}</span>
+          <span class="line-name">${line.name}</span>
+          ${lineStatusBadge(line.status)}
+          <span class="line-chevron">›</span>
+        </a>
+      `).join('');
+    }
+  } else {
+    $('busRows').innerHTML='<div class="empty-row">No bus lines configured.</div>';
+  }
+
+  // Accessibility rows
+  if(acc.length){
+    $('accessibilityRows').innerHTML=acc.map(line=>`
+      <div class="acc-row">
+        <span class="acc-icon">${(line.alertCount||0)>0?'⚠️':'♿'}</span>
+        <div>
+          <div class="acc-title">${line.name}</div>
+          <div class="acc-desc">${line.description||''}</div>
         </div>
-      </div>`:''}
-      <a href="index.html" class="visit-btn">← Back to Status Page</a>
-    `;
-  }catch(e){$('page').innerHTML=`<div class="error-box">Failed to load: ${e.message}</div>`;}
+      </div>
+    `).join('');
+  } else {
+    $('accessibilityRows').innerHTML='<div class="empty-row">No accessibility alerts.</div>';
+  }
 }
-load();
+
+function toggleGroup(el){
+  const body=el.nextElementSibling;
+  body.classList.toggle('open');
+  el.querySelector('span:last-child').textContent=body.classList.contains('open')?'⌄':'›';
+}
+
+function renderIncidentsList(incidents){
+  const active=incidents.filter(i=>i.status!=='resolved');
+  const sec=$('incidentSection');
+  if(!active.length){sec.style.display='none';return;}
+  sec.style.display='block';
+  $('incidentBadge').textContent=active.length;
+  $('incidentRows').innerHTML=active.map(i=>`
+    <a class="alert-item" href="incident.html?id=${i.id}">
+      <div class="alert-level-dot ald-${i.level}"></div>
+      <div class="alert-item-body">
+        <div class="alert-item-title">${i.title}</div>
+        <div class="alert-item-desc">${i.description?.slice(0,80)||''}${(i.description?.length||0)>80?'…':''}</div>
+        <div class="alert-item-meta">
+          <span class="alert-badge ab-${i.level}">${i.level}</span>
+          <span class="alert-badge ab-status">${i.status.replace(/_/g,' ')}</span>
+        </div>
+      </div>
+      <span class="alert-item-chevron">›</span>
+    </a>
+  `).join('');
+}
+
+function renderMaintenanceList(maintenance){
+  const vis=maintenance.filter(m=>m.status!=='completed'&&m.status!=='cancelled');
+  const sec=$('maintenanceSection');
+  if(!vis.length){sec.style.display='none';return;}
+  sec.style.display='block';
+  $('maintenanceBadge').textContent=vis.length;
+  $('maintenanceRows').innerHTML=vis.map(m=>`
+    <a class="alert-item" href="maintenance.html?id=${m.id}">
+      <div class="alert-level-dot" style="background:#7c3aed"></div>
+      <div class="alert-item-body">
+        <div class="alert-item-title">${m.title}</div>
+        <div class="alert-item-desc">${m.description?.slice(0,80)||''}${(m.description?.length||0)>80?'…':''}</div>
+        <div class="alert-item-meta">
+          <span class="alert-badge ab-maint">${m.status.replace(/_/g,' ')}</span>
+        </div>
+      </div>
+      <span class="alert-item-chevron">›</span>
+    </a>
+  `).join('');
+}
+
+function renderUptime(u){
+  if(!u?.days)return;
+  const pct=parseFloat(u.percentage||100);
+  const el=$('uptimePct');
+  el.textContent=pct+'%';
+  if(pct<99)el.style.color='#ca8a04';
+  if(pct<95)el.style.color='#dc2626';
+  $('uptimeGrid').innerHTML=u.days.map(d=>`<div class="ud ud-${d.status}" data-tip="${d.date}: ${d.status.replace(/_/g,' ')}"></div>`).join('');
+}
+
+async function loadAnnouncement(){
+  try{
+    const d=await fetch(`${API_BASE}/api/announcement`).then(r=>r.json());
+    if(!d)return;
+    if(sessionStorage.getItem('ann_dismissed')===d.setAt)return;
+    const bar=$('annBar'),txt=$('annText');
+    txt.innerHTML=d.link?`<a href="${d.link}" target="_blank">${d.text}</a>`:d.text;
+    bar.className='ann-bar type-'+d.type+' show';
+    bar._setAt=d.setAt;
+  }catch(e){}
+}
+function dismissAnn(){
+  const bar=$('annBar');
+  if(bar._setAt)sessionStorage.setItem('ann_dismissed',bar._setAt);
+  bar.classList.remove('show');
+}
+
+async function doSubscribe(){
+  const email=$('subEmail').value.trim(),name=$('subName').value.trim(),msg=$('subMsg');
+  if(!email.includes('@')){msg.className='sub-msg error';msg.textContent='Please enter a valid email.';return;}
+  try{
+    const r=await fetch(`${API_BASE}/api/subscribe`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,name})});
+    const d=await r.json();
+    if(r.ok){msg.className='sub-msg success';msg.textContent='✓ Subscribed! You\'ll receive alerts by email.';$('subEmail').value='';$('subName').value='';}
+    else throw new Error(d.error||'Failed');
+  }catch(e){msg.className='sub-msg error';msg.textContent=e.message;}
+}
+
+if(new URLSearchParams(location.search).get('unsubscribe')==='true'){
+  const email=prompt('Enter your email to unsubscribe:');
+  if(email)fetch(`${API_BASE}/api/unsubscribe`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email})}).then(()=>alert('Unsubscribed.'));
+}
+
+loadAnnouncement();
+loadAll();
+setInterval(loadAll,60000);
 </script>
 </body>
 </html>
