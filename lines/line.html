@@ -202,8 +202,9 @@ async function load(){
               <span class="ov-icon">📍</span>
               <div>
                 <div class="ov-label">Route</div>
-                <div class="ov-value">Service runs between <strong>${stops[0]}</strong> and <strong>${stops[stops.length-1]}</strong> with ${stops.length} stops.</div>
-              </div>
+                <div class="ov-value">
+                   ${lineData.name} runs between <strong>${stops[0]}</strong> and <strong>${stops[stops.length - 1]}</strong> with ${stops.length} stops.
+                      </div>
             </div>`:''}
             ${lineData.description?`<div class="overview-item">
               <span class="ov-icon">ℹ️</span>
