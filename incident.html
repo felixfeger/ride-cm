@@ -15,6 +15,9 @@
 document.addEventListener('click', e=>{
   if(!e.target.closest('.nav-dropdown')) document.querySelectorAll('.nav-dropdown.open').forEach(d=>d.classList.remove('open'));
 });
+ function toggleMobileNav(){
+  document.getElementById('mobileNavPanel').classList.toggle('open');
+}
 </script>
 <style>
   *{box-sizing:border-box;margin:0;padding:0}
@@ -115,7 +118,52 @@ document.addEventListener('click', e=>{
     <span class="hdr-updated" id="lastUpdated"></span>
     <a href="admin.html" class="hdr-admin">Admin</a>
     <a href="#" class="contact-btn">Contact Us</a>
+    <button class="hdr-hamburger" onclick="toggleMobileNav()" aria-label="Menu">
+      <span></span><span></span><span></span>
+    </button>
   </div>
+</header>
+
+<div class="mobile-nav-panel" id="mobileNavPanel">
+  <a href="https://citymetro.xyz" class="nav-link">Home</a>
+  <div class="nav-dropdown">
+    <button class="nav-link" onclick="toggleDropdown(this)">About <span class="dd-arrow">⌄</span></button>
+    <div class="nav-dd-menu">
+      <a href="#">Contact</a>
+      <a href="#">Rail and Bus Lines</a>
+      <a href="#">City Metro Shop</a>
+      <a href="#">Transit Museum</a>
+      <a href="#">City Metro Support</a>
+      <a href="#">Republic State Railways</a>
+      <a href="#">City MetroLink</a>
+      <a href="#">Advertising, Sponsorships &amp; Filming</a>
+    </div>
+  </div>
+  <a href="#" class="nav-link">Fares</a>
+  <div class="nav-dropdown">
+    <button class="nav-link" onclick="toggleDropdown(this)">Ride <span class="dd-arrow">⌄</span></button>
+    <div class="nav-dd-menu">
+      <a href="#">Arrivals</a>
+      <a href="#">Metro Map</a>
+      <a href="https://trip-planner.citymetro.xyz">Trip Planner</a>
+      <a href="/">Transit Alerts</a>
+      <a href="#">SkyLink</a>
+    </div>
+  </div>
+  <div class="nav-dropdown">
+    <button class="nav-link" onclick="toggleDropdown(this)">Safety <span class="dd-arrow">⌄</span></button>
+    <div class="nav-dd-menu">
+      <a href="#">Transit Police</a>
+      <a href="#">Lego City Police</a>
+      <a href="#">LCSD</a>
+    </div>
+  </div>
+  <hr>
+  <div class="mobile-extra">
+    <a href="admin.html" class="hdr-admin" style="text-align:center">Admin</a>
+    <a href="#" class="contact-btn">Contact Us</a>
+  </div>
+</div>
 </header>
 
 <div class="back-bar">
