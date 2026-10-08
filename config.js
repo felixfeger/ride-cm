@@ -2,7 +2,7 @@
 //  City Metro Alerts - site configuration (shared by every page)
 //  Authentik sign-in settings. Edit the two values marked  <-- CHANGE.
 //  (The Worker URL, API_BASE, is set at the top of each HTML page.)
-// ─────────────────────────────────────────────────────────────────────────────
+// ───────────────────────────────────────────────────────────────────────────── 
 
 const METRO_CONFIG = {
   OIDC: {
