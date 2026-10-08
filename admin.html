@@ -8,6 +8,10 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 
+<script>
+  // Worker URL - trailing slash is removed automatically
+  const API_BASE = 'https://ride-metro.felixfeger46.workers.dev'.replace(/\/+$/, '');
+</script>
 <script src="config.js"></script>
 <script src="auth.js"></script>
 
@@ -435,6 +439,11 @@
   }
   .line-pick-all:hover { color: white; border-color: white; }
   .line-pick-all.selected { background: white; color: var(--bg); border-style: solid; border-color: white; }
+  .sub-all-row { display:flex; align-items:center; gap:10px; font-size:13px; color:var(--muted); margin:14px 0 4px; cursor:pointer; }
+  .sub-all-row input { width:16px; height:16px; accent-color:var(--accent); cursor:pointer; }
+  .src-tag { font-size:10px; font-weight:700; letter-spacing:1px; text-transform:uppercase; padding:2px 8px; border-radius:999px; }
+  .src-account { background:rgba(59,130,246,.15); color:var(--accent); }
+  .src-manual  { background:rgba(168,85,247,.15); color:var(--maintenance); }
   .scope-tag { display:inline-block; font-size:11px; padding:2px 8px; border-radius:999px; background:var(--bg); border:1px solid var(--border); margin:0 4px 4px 0; }
 
   /* ── WAYPOINT SELECT ─────────────────────────────────────── */
@@ -826,6 +835,42 @@
   </div>
 </div>
 
+<!-- Subscriber Modal -->
+<div class="modal-overlay" id="subscriberModal">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title" id="subModalTitle">Add Subscriber</span>
+      <button class="modal-close" onclick="closeModal('subscriberModal')">×</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="sub_id">
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Email *</label>
+          <input class="form-input" type="email" id="sub_email" placeholder="name@example.com">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Name</label>
+          <input class="form-input" id="sub_name" placeholder="Optional">
+        </div>
+      </div>
+      <label class="sub-all-row"><input type="checkbox" id="sub_all" onchange="subAllChanged()"> Everything: all lines and stations, including any added later</label>
+      <div id="sub_scope">
+        <div class="form-section-label">Lines</div>
+        <div class="line-picker" id="sub_lines"></div>
+        <div class="form-section-label">Stations</div>
+        <div class="waypoint-picker" id="sub_waypoints" style="max-height:160px"></div>
+      </div>
+      <div style="font-size:12px;color:var(--faint);margin-top:12px">Incidents that affect every line are always sent to all subscribers.</div>
+      <label class="sub-all-row" id="sub_confirm_row"><input type="checkbox" id="sub_confirm" checked> Send a confirmation email</label>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('subscriberModal')">Cancel</button>
+      <button class="btn btn-blue" onclick="saveSubscriber()">Save Subscriber</button>
+    </div>
+  </div>
+</div>
+
 <!-- Toast -->
 <div id="toast"></div>
 
@@ -1182,14 +1227,16 @@ async function saveLines() {
 }
 
 // ─── SUBSCRIBERS TAB ──────────────────────────────────────────────────────────
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
+
 function subscriberScope(s) {
   if (s.all) return '<span class="scope-tag">Everything</span>';
   const tags = [
     ...(s.lines || []).map(id => {
       const l = allLines.find(x => x.id === id);
-      return `<span class="scope-tag" ${l ? `style="border-color:${l.color};color:${l.color}"` : ''}>${l ? l.name : id}</span>`;
+      return `<span class="scope-tag" ${l ? `style="border-color:${esc(l.color)};color:${esc(l.color)}"` : ''}>${esc(l ? l.name : id)}</span>`;
     }),
-    ...(s.stations || []).map(w => `<span class="scope-tag">${w}</span>`),
+    ...(s.stations || []).map(w => `<span class="scope-tag">${esc(w)}</span>`),
   ];
   return tags.join('') || '—';
 }
@@ -1199,21 +1246,26 @@ function renderSubscribers() {
     <div class="page-header">
       <div>
         <div class="page-title">Subscribers</div>
-        <div style="font-size:13px;color:var(--muted);margin-top:2px">${subscribers.length} signed-in subscribers. Incidents that affect every line go to all of them.</div>
+        <div style="font-size:13px;color:var(--muted);margin-top:2px">${subscribers.length} subscribers. Incidents that affect every line go to all of them.</div>
       </div>
+      <button class="btn btn-blue" onclick="openSubscriberModal()">+ Add Subscriber</button>
     </div>
     ${subscribers.length ? `
       <div class="table-wrap">
         <table>
-          <thead><tr><th>Email</th><th>Name</th><th>Notified about</th><th>Subscribed</th><th></th></tr></thead>
+          <thead><tr><th>Email</th><th>Notified about</th><th>Source</th><th>Subscribed</th><th>Actions</th></tr></thead>
           <tbody>
             ${subscribers.map(s => `
               <tr>
-                <td style="font-family:'JetBrains Mono',monospace;font-size:12px">${s.email}</td>
-                <td style="color:var(--muted)">${s.name || '—'}</td>
+                <td><div style="font-family:'JetBrains Mono',monospace;font-size:12px">${esc(s.email)}</div>
+                    ${s.name ? `<div class="td-desc">${esc(s.name)}</div>` : ''}</td>
                 <td>${subscriberScope(s)}</td>
+                <td><span class="src-tag ${s.manual ? 'src-manual' : 'src-account'}">${s.manual ? 'Added by admin' : 'Account'}</span></td>
                 <td class="td-time">${fmtDate(s.subscribedAt)}</td>
-                <td><button class="btn btn-red btn-sm" onclick="deleteSubscriber('${encodeURIComponent(s.id)}')">Remove</button></td>
+                <td><div class="td-actions">
+                  <button class="btn btn-ghost btn-sm" onclick="openSubscriberModal(decodeURIComponent('${encodeURIComponent(s.id)}'))">Edit</button>
+                  <button class="btn btn-red btn-sm" onclick="deleteSubscriber('${encodeURIComponent(s.id)}')">Remove</button>
+                </div></td>
               </tr>
             `).join('')}
           </tbody>
@@ -1223,12 +1275,72 @@ function renderSubscribers() {
   `;
 }
 
+function allStationNames() {
+  return [...new Set(allLines.flatMap(l => l.waypoints || []))];
+}
+
+function renderSubStations(selected) {
+  const names = allStationNames();
+  document.getElementById('sub_waypoints').innerHTML = names.length
+    ? names.map(wp => `<div class="wp-item ${selected.includes(wp) ? 'selected' : ''}"
+        onclick="toggleWaypoint('sub_waypoints','${wp.replace(/'/g, "\\'")}')">${esc(wp)}</div>`).join('')
+    : '<span style="font-size:12px;color:var(--faint)">No stations configured yet.</span>';
+}
+
+function subAllChanged() {
+  const on = document.getElementById('sub_all').checked;
+  const scope = document.getElementById('sub_scope');
+  scope.style.opacity = on ? '.4' : '1';
+  scope.style.pointerEvents = on ? 'none' : '';
+}
+
+function openSubscriberModal(id = null) {
+  const s = id ? subscribers.find(x => x.id === id) : null;
+  document.getElementById('subModalTitle').textContent = s ? 'Edit Subscriber' : 'Add Subscriber';
+  document.getElementById('sub_id').value    = s?.id || '';
+  document.getElementById('sub_email').value = s?.email || '';
+  document.getElementById('sub_email').disabled = !!s && !s.manual;   // signed-in users' email comes from their account
+  document.getElementById('sub_name').value  = s?.name || '';
+  document.getElementById('sub_all').checked = !!s?.all;
+  renderLinePicker('sub_lines', s?.lines || [], 'sub');
+  renderSubStations(s?.stations || []);
+  document.getElementById('sub_confirm_row').style.display = s ? 'none' : 'flex';
+  document.getElementById('sub_confirm').checked = true;
+  subAllChanged();
+  openModal('subscriberModal');
+}
+
+async function saveSubscriber() {
+  const id = document.getElementById('sub_id').value;
+  const body = {
+    name:     document.getElementById('sub_name').value.trim(),
+    all:      document.getElementById('sub_all').checked,
+    lines:    getSelectedLines('sub_lines'),
+    stations: getSelectedWaypoints('sub_waypoints'),
+  };
+  if (!id || !document.getElementById('sub_email').disabled) body.email = document.getElementById('sub_email').value.trim();
+  if (!id && !body.email) return toast('Email is required', 'error');
+  if (!body.all && !body.lines.length && !body.stations.length)
+    return toast('Pick at least one line or station, or choose Everything', 'error');
+  if (!id) body.sendConfirmation = document.getElementById('sub_confirm').checked;
+
+  try {
+    if (id) await api(`/api/subscribers/${encodeURIComponent(id)}`, 'PUT', body);
+    else    await api('/api/subscribers', 'POST', body);
+    toast(id ? 'Subscriber updated' : 'Subscriber added', 'success');
+    closeModal('subscriberModal');
+    await loadAll();
+    renderSubscribers();
+  } catch (e) { toast(e.message, 'error'); }
+}
+
 async function deleteSubscriber(idEncoded) {
-  if (!confirm('Remove this subscriber?')) return;
+  if (!confirm('Remove this subscriber? They will stop receiving alerts.')) return;
   try {
     await api(`/api/subscribers/${idEncoded}`, 'DELETE');
     toast('Subscriber removed', 'success');
     await loadAll();
+    renderSubscribers();
   } catch (e) { toast(e.message, 'error'); }
 }
 
@@ -1420,6 +1532,7 @@ function toggleAllLines(containerId, prefix) {
   const selected = getSelectedLines(containerId);
   const next = selected.length === allLines.length ? [] : allLines.map(l => l.id);
   renderLinePicker(containerId, next, prefix);
+  if (prefix === 'sub') return;
   renderWaypointPicker(`${prefix}_waypoints`, next, getSelectedWaypoints(`${prefix}_waypoints`));
 }
 
@@ -1432,6 +1545,7 @@ function toggleLine(containerId, lineId, prefix) {
   else selected.splice(idx, 1);
 
   renderLinePicker(containerId, selected, prefix);
+  if (prefix === 'sub') return;   // subscriber modal lists every station
   renderWaypointPicker(`${prefix}_waypoints`, selected, getSelectedWaypoints(`${prefix}_waypoints`));
 }
 
