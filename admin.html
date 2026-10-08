@@ -8,10 +8,8 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 
-<script>
-  // Paste your Worker URL below — trailing slash is removed automatically
-  const API_BASE = 'https://ride-metro.felixfeger46.workers.dev'.replace(/\/+$/, '');
-</script>
+<script src="config.js"></script>
+<script src="auth.js"></script>
 
 <style>
   :root {
@@ -430,6 +428,15 @@
 
   .line-pick-item.selected { border-color: currentColor; color: white; }
 
+  .line-pick-all {
+    display: flex; align-items: center; padding: 5px 12px; border-radius: 999px;
+    border: 1px dashed var(--muted); background: transparent; color: var(--muted);
+    cursor: pointer; font-size: 12px; font-weight: 600; user-select: none; transition: all .12s;
+  }
+  .line-pick-all:hover { color: white; border-color: white; }
+  .line-pick-all.selected { background: white; color: var(--bg); border-style: solid; border-color: white; }
+  .scope-tag { display:inline-block; font-size:11px; padding:2px 8px; border-radius:999px; background:var(--bg); border:1px solid var(--border); margin:0 4px 4px 0; }
+
   /* ── WAYPOINT SELECT ─────────────────────────────────────── */
   .waypoint-picker {
     display: flex;
@@ -631,13 +638,10 @@
         <div class="logo-sub">Alerts Admin</div>
       </div>
     </div>
-    <div class="login-title">Enter your admin secret to continue.</div>
-    <div class="form-group">
-      <label class="form-label">Admin Secret</label>
-      <input class="form-input" type="password" id="loginSecret" placeholder="••••••••••••" onkeydown="if(event.key==='Enter')doLogin()">
-    </div>
-    <button class="btn-primary" onclick="doLogin()">Sign In</button>
-    <div class="login-err" id="loginErr">Invalid secret. Please try again.</div>
+    <div class="login-title" id="loginTitle">Sign in with your City Metro account to continue.</div>
+    <button class="btn-primary" id="loginBtn" onclick="doLogin()">Sign in</button>
+    <button class="btn-primary" id="switchBtn" onclick="doLogout()" style="display:none;margin-top:10px;background:transparent;border:1px solid var(--border);color:var(--muted)">Sign out</button>
+    <div class="login-err" id="loginErr"></div>
   </div>
 </div>
 
@@ -827,66 +831,56 @@
 
 <script>
 // ─── STATE ────────────────────────────────────────────────────────────────────
-let token = '';
 let allLines = [];
 let incidents = [];
 let maintenance = [];
 let subscribers = [];
 
-// ─── AUTH ─────────────────────────────────────────────────────────────────────
+// ─── AUTH (Authentik SSO) ─────────────────────────────────────────────────────
+// Sign-in happens at auth.citymetro.xyz. Only members of the Authentik admin
+// group get past /api/me -> isAdmin; the Worker re-checks on every request.
+function showLogin(message, denied = false) {
+  document.getElementById('app').style.display = 'none';
+  document.getElementById('loginScreen').style.display = '';
+  const err = document.getElementById('loginErr');
+  err.textContent = message || '';
+  err.style.display = message ? 'block' : 'none';
+  document.getElementById('loginBtn').style.display  = denied ? 'none' : '';
+  document.getElementById('switchBtn').style.display = denied ? '' : 'none';
+}
+
 function doLogin() {
-  const sec = document.getElementById('loginSecret').value.trim();
-  if (!sec) return;
-  token = sec;
-  // Verify by calling a protected endpoint
-  fetch(`${API_BASE}/api/subscribers`, { headers: { Authorization: `Bearer ${token}` }})
-    .then(r => {
-      if (r.ok) {
-        document.getElementById('loginScreen').style.display = 'none';
-        document.getElementById('app').style.display = 'flex';
-        localStorage.setItem('adminToken', token);
-        loadAll();
-      } else {
-        document.getElementById('loginErr').style.display = 'block';
-        token = '';
-      }
-    })
-    .catch(() => { document.getElementById('loginErr').style.display = 'block'; token = ''; });
+  MetroAuth.login('/admin');
 }
 
 function doLogout() {
-  localStorage.removeItem('adminToken');
-  location.reload();
+  MetroAuth.logout();
 }
 
-// Auto-login from storage
-const saved = localStorage.getItem('adminToken');
-if (saved) {
-  token = saved;
-  fetch(`${API_BASE}/api/subscribers`, { headers: { Authorization: `Bearer ${token}` }})
-    .then(r => {
-      if (r.ok) {
-        document.getElementById('loginScreen').style.display = 'none';
-        document.getElementById('app').style.display = 'flex';
-        loadAll();
-      } else {
-        token = '';
-        localStorage.removeItem('adminToken');
-      }
-    });
+async function startAdmin() {
+  if (!MetroAuth.isSignedIn()) return showLogin();
+  try {
+    const me = await MetroAuth.api('/api/me');
+    if (!me.isAdmin) {
+      return showLogin(`${me.email || 'This account'} is signed in but is not an alerts administrator.`, true);
+    }
+    document.getElementById('loginScreen').style.display = 'none';
+    document.getElementById('app').style.display = 'flex';
+    loadAll();
+  } catch (e) {
+    showLogin(e.message);
+  }
 }
+startAdmin();
 
 // ─── FETCH HELPERS ────────────────────────────────────────────────────────────
 async function api(path, method = 'GET', body = null) {
-  const opts = {
-    method,
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-  };
-  if (body) opts.body = JSON.stringify(body);
-  const r = await fetch(`${API_BASE}${path}`, opts);
-  const data = await r.json();
-  if (!r.ok) throw new Error(data.error || 'Request failed');
-  return data;
+  try {
+    return await MetroAuth.api(path, method, body);
+  } catch (e) {
+    if (e.code === 'AUTH') showLogin(e.message);
+    throw e;
+  }
 }
 
 async function loadAll() {
@@ -1188,25 +1182,38 @@ async function saveLines() {
 }
 
 // ─── SUBSCRIBERS TAB ──────────────────────────────────────────────────────────
+function subscriberScope(s) {
+  if (s.all) return '<span class="scope-tag">Everything</span>';
+  const tags = [
+    ...(s.lines || []).map(id => {
+      const l = allLines.find(x => x.id === id);
+      return `<span class="scope-tag" ${l ? `style="border-color:${l.color};color:${l.color}"` : ''}>${l ? l.name : id}</span>`;
+    }),
+    ...(s.stations || []).map(w => `<span class="scope-tag">${w}</span>`),
+  ];
+  return tags.join('') || '—';
+}
+
 function renderSubscribers() {
   document.getElementById('mainContent').innerHTML = `
     <div class="page-header">
       <div>
         <div class="page-title">Subscribers</div>
-        <div style="font-size:13px;color:var(--muted);margin-top:2px">${subscribers.length} email subscribers</div>
+        <div style="font-size:13px;color:var(--muted);margin-top:2px">${subscribers.length} signed-in subscribers. Incidents that affect every line go to all of them.</div>
       </div>
     </div>
     ${subscribers.length ? `
       <div class="table-wrap">
         <table>
-          <thead><tr><th>Email</th><th>Name</th><th>Subscribed</th><th></th></tr></thead>
+          <thead><tr><th>Email</th><th>Name</th><th>Notified about</th><th>Subscribed</th><th></th></tr></thead>
           <tbody>
             ${subscribers.map(s => `
               <tr>
                 <td style="font-family:'JetBrains Mono',monospace;font-size:12px">${s.email}</td>
                 <td style="color:var(--muted)">${s.name || '—'}</td>
+                <td>${subscriberScope(s)}</td>
                 <td class="td-time">${fmtDate(s.subscribedAt)}</td>
-                <td><button class="btn btn-red btn-sm" onclick="deleteSubscriber('${encodeURIComponent(s.email)}')">Remove</button></td>
+                <td><button class="btn btn-red btn-sm" onclick="deleteSubscriber('${encodeURIComponent(s.id)}')">Remove</button></td>
               </tr>
             `).join('')}
           </tbody>
@@ -1216,10 +1223,10 @@ function renderSubscribers() {
   `;
 }
 
-async function deleteSubscriber(emailEncoded) {
+async function deleteSubscriber(idEncoded) {
   if (!confirm('Remove this subscriber?')) return;
   try {
-    await api(`/api/subscribers/${emailEncoded}`, 'DELETE');
+    await api(`/api/subscribers/${idEncoded}`, 'DELETE');
     toast('Subscriber removed', 'success');
     await loadAll();
   } catch (e) { toast(e.message, 'error'); }
@@ -1395,7 +1402,11 @@ async function deleteMaintenance(id) {
 // ─── LINE / WAYPOINT PICKERS ──────────────────────────────────────────────────
 function renderLinePicker(containerId, selected, prefix) {
   const container = document.getElementById(containerId);
-  container.innerHTML = allLines.map(line => `
+  const everyLine = allLines.length > 0 && allLines.every(l => selected.includes(l.id));
+  container.innerHTML = `
+    <div class="line-pick-all ${everyLine ? 'selected' : ''}" title="Affects every line - all subscribers are notified"
+      onclick="toggleAllLines('${containerId}','${prefix}')">All lines</div>
+  ` + allLines.map(line => `
     <div class="line-pick-item ${selected.includes(line.id) ? 'selected' : ''}"
       style="color:${selected.includes(line.id) ? 'white' : line.color};background:${selected.includes(line.id) ? line.color : 'var(--bg)'};border-color:${line.color}"
       onclick="toggleLine('${containerId}','${line.id}','${prefix}')">
@@ -1403,6 +1414,13 @@ function renderLinePicker(containerId, selected, prefix) {
       ${line.name}
     </div>
   `).join('');
+}
+
+function toggleAllLines(containerId, prefix) {
+  const selected = getSelectedLines(containerId);
+  const next = selected.length === allLines.length ? [] : allLines.map(l => l.id);
+  renderLinePicker(containerId, next, prefix);
+  renderWaypointPicker(`${prefix}_waypoints`, next, getSelectedWaypoints(`${prefix}_waypoints`));
 }
 
 function toggleLine(containerId, lineId, prefix) {
