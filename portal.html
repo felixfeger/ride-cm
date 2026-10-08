@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Notifications · City Metro Alerts</title>
+<link rel="icon" href="logo.png">
+<script src="config.js"></script>
+<script src="auth.js"></script>
+
+<style>
+  :root {
+    --bg:           #f0f4f8;
+    --surface:      #ffffff;
+    --border:       #e2e8f0;
+    --border-strong:#cbd5e1;
+    --text:         #0f172a;
+    --muted:        #64748b;
+    --faint:        #94a3b8;
+    --accent:       #2563eb;
+    --accent-hover: #1d4ed8;
+    --accent-soft:  #eff6ff;
+    --ok-bg:        #f0fdf4;
+    --ok-bdr:       #bbf7d0;
+    --ok-text:      #15803d;
+    --err-bg:       #fef2f2;
+    --err-bdr:      #fecaca;
+    --err-text:     #b91c1c;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: Helvetica Neue, Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    line-height: 1.5;
+  }
+
+  [hidden] { display: none !important; }
+  :focus-visible { outline: 3px solid #93c5fd; outline-offset: 2px; }
+
+  /* ── header (matches the status page) ───────────────────── */
+  header {
+    background: #0f172a;
+    padding: 0 32px;
+    height: 64px;
+    display: flex; align-items: center; justify-content: space-between;
+    position: sticky; top: 0; z-index: 10;
+  }
+  .logo { display: flex; align-items: center; gap: 12px; text-decoration: none; color: #fff; }
+  .logo img { width: 36px; height: 36px; object-fit: contain; background: #fff; border-radius: 50%; padding: 3px; }
+  .logo-text { display: flex; flex-direction: column; line-height: 1.1; }
+  .logo-city { font-weight: 700; font-size: 16px; letter-spacing: 2px; text-transform: uppercase; }
+  .logo-sub  { font-size: 11px; font-weight: 600; letter-spacing: 3px; text-transform: uppercase; color: #3b82f6; margin-top: 3px; }
+
+  .header-right { display: flex; align-items: center; gap: 16px; font-size: 13px; }
+  .header-right a, .header-right button {
+    color: #cbd5e1; text-decoration: none; background: none; border: 0; cursor: pointer;
+    font: inherit; padding: 6px 2px;
+  }
+  .header-right a:hover, .header-right button:hover { color: #fff; }
+  .who { color: #94a3b8; max-width: 240px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  /* ── layout ─────────────────────────────────────────────── */
+  main { max-width: 760px; margin: 0 auto; padding: 40px 20px 72px; }
+
+  h1 { font-size: 28px; font-weight: 700; letter-spacing: -.2px; }
+  .lede { color: var(--muted); font-size: 15px; margin: 6px 0 28px; }
+  .lede strong { color: var(--text); font-weight: 600; }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 24px;
+    margin-bottom: 16px;
+  }
+  .card h2 { font-size: 17px; font-weight: 700; }
+  .card .hint { color: var(--muted); font-size: 13px; margin-top: 2px; }
+  .card-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 16px; }
+
+  .link-btn { background: none; border: 0; color: var(--accent); font: inherit; font-size: 13px; cursor: pointer; padding: 2px 0; }
+  .link-btn:hover { text-decoration: underline; }
+  .link-btn + .link-btn { margin-left: 14px; }
+
+  /* ── banner / messages ──────────────────────────────────── */
+  .banner { border-radius: 10px; padding: 12px 16px; font-size: 14px; margin-bottom: 20px; border: 1px solid; display: none; }
+  .banner.show { display: block; }
+  .banner.ok  { background: var(--ok-bg);  border-color: var(--ok-bdr);  color: var(--ok-text); }
+  .banner.err { background: var(--err-bg); border-color: var(--err-bdr); color: var(--err-text); }
+  .banner.info{ background: var(--accent-soft); border-color: #bfdbfe; color: #1e40af; }
+
+  /* ── signed-out ─────────────────────────────────────────── */
+  .signin { text-align: center; padding: 48px 24px; }
+  .signin h1 { font-size: 26px; }
+  .signin p { color: var(--muted); max-width: 440px; margin: 10px auto 24px; }
+
+  .btn {
+    display: inline-block; border: 0; border-radius: 8px; cursor: pointer;
+    font: inherit; font-size: 14px; font-weight: 600; padding: 11px 22px;
+    background: var(--accent); color: #fff; transition: background .15s;
+  }
+  .btn:hover { background: var(--accent-hover); }
+  .btn:disabled { background: var(--border-strong); cursor: not-allowed; }
+  .btn.secondary { background: transparent; color: var(--err-text); border: 1px solid var(--err-bdr); }
+  .btn.secondary:hover { background: var(--err-bg); }
+
+  /* ── "everything" switch ────────────────────────────────── */
+  .everything { display: flex; align-items: center; gap: 16px; cursor: pointer; }
+  .everything .text { flex: 1; }
+  .everything .title { font-size: 16px; font-weight: 700; }
+  .everything .hint  { color: var(--muted); font-size: 13px; }
+
+  .switch { position: relative; width: 46px; height: 26px; flex: none; }
+  .switch input { position: absolute; inset: 0; opacity: 0; cursor: pointer; margin: 0; width: 100%; height: 100%; }
+  .switch .track { position: absolute; inset: 0; background: var(--border-strong); border-radius: 999px; transition: background .15s; pointer-events: none; }
+  .switch .thumb { position: absolute; top: 3px; left: 3px; width: 20px; height: 20px; background: #fff; border-radius: 50%; transition: transform .15s; pointer-events: none; box-shadow: 0 1px 2px rgba(0,0,0,.25); }
+  .switch input:checked ~ .track { background: var(--accent); }
+  .switch input:checked ~ .thumb { transform: translateX(20px); }
+  .switch input:focus-visible ~ .track { outline: 3px solid #93c5fd; outline-offset: 2px; }
+  @media (prefers-reduced-motion: reduce) { .switch .track, .switch .thumb { transition: none; } }
+
+  /* ── pickers ────────────────────────────────────────────── */
+  .picker.off { opacity: .45; pointer-events: none; }
+
+  .line-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 10px; }
+  .line-tile {
+    display: flex; align-items: center; gap: 12px;
+    padding: 12px 14px; border: 1px solid var(--border-strong); border-left-width: 6px;
+    border-radius: 8px; cursor: pointer; background: #fff; transition: background .12s, box-shadow .12s;
+    position: relative;
+  }
+  .line-tile:hover { background: #f8fafc; }
+  .line-tile input { width: 18px; height: 18px; accent-color: var(--accent); flex: none; cursor: pointer; }
+  .line-tile .name { font-weight: 600; font-size: 14px; }
+  .line-tile .count { font-size: 12px; color: var(--muted); }
+  .line-tile:has(input:checked) { background: var(--accent-soft); box-shadow: inset 0 0 0 1px var(--accent); }
+  .line-tile:has(input:focus-visible) { outline: 3px solid #93c5fd; outline-offset: 2px; }
+
+  .station-group + .station-group { margin-top: 18px; }
+  .station-group h3 { font-size: 13px; font-weight: 700; display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+  .dot { width: 10px; height: 10px; border-radius: 50%; flex: none; }
+
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; }
+  .chip {
+    display: inline-flex; align-items: center; gap: 8px; padding: 7px 12px;
+    border: 1px solid var(--border-strong); border-radius: 999px; font-size: 13px;
+    cursor: pointer; background: #fff; user-select: none;
+  }
+  .chip:hover { background: #f8fafc; }
+  .chip input { width: 15px; height: 15px; accent-color: var(--accent); cursor: pointer; }
+  .chip:has(input:checked) { background: var(--accent-soft); border-color: var(--accent); }
+  .chip.covered { background: #f1f5f9; border-style: dashed; color: var(--muted); cursor: default; }
+  .chip.covered input { cursor: default; }
+  .chip:has(input:focus-visible) { outline: 3px solid #93c5fd; outline-offset: 2px; }
+  .empty-note { color: var(--muted); font-size: 14px; }
+
+  /* ── summary + actions ──────────────────────────────────── */
+  .summary { font-size: 14px; color: var(--muted); }
+  .summary strong { color: var(--text); }
+  .always { font-size: 13px; color: var(--muted); margin-top: 8px; }
+
+  .actions { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-top: 20px; }
+
+  footer { text-align: center; color: var(--faint); font-size: 12px; padding: 0 20px 32px; }
+  footer a { color: var(--faint); }
+
+  @media (max-width: 560px) {
+    header { padding: 0 16px; }
+    .who { display: none; }
+    main { padding-top: 28px; }
+    .card { padding: 18px; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <a href="/" class="logo">
+    <img src="logo.png" alt="">
+    <span class="logo-text">
+      <span class="logo-city">City Metro</span>
+      <span class="logo-sub">Alerts</span>
+    </span>
+  </a>
+  <div class="header-right">
+    <span class="who" id="who"></span>
+    <a href="/">Status page</a>
+    <a href="admin.html" id="adminLink" hidden>Admin</a>
+    <button id="signOutBtn" hidden>Sign out</button>
+  </div>
+</header>
+
+<main>
+  <div class="banner" id="banner" role="status"></div>
+
+  <!-- Signed out -->
+  <section class="card signin" id="signedOut" hidden>
+    <h1>Get alerts for the lines you ride</h1>
+    <p>Sign in with your City Metro account, then choose the lines and stations you want emails about.</p>
+    <button class="btn" id="signInBtn">Sign in</button>
+  </section>
+
+  <!-- Signed in -->
+  <section id="signedIn" hidden>
+    <h1>Your notifications</h1>
+    <p class="lede">Alerts are emailed to <strong id="emailTo"></strong>.</p>
+
+    <div class="card">
+      <label class="everything">
+        <span class="text">
+          <span class="title">Everything</span><br>
+          <span class="hint">Every line and station, including any added later.</span>
+        </span>
+        <span class="switch">
+          <input type="checkbox" id="allToggle" role="switch">
+          <span class="track"></span><span class="thumb"></span>
+        </span>
+      </label>
+    </div>
+
+    <div class="picker" id="picker">
+      <div class="card">
+        <div class="card-head">
+          <div>
+            <h2>Lines</h2>
+            <p class="hint">Get an email for anything that affects the line.</p>
+          </div>
+          <div>
+            <button class="link-btn" id="selectAllLines">Select all lines</button>
+            <button class="link-btn" id="clearAll">Clear</button>
+          </div>
+        </div>
+        <div class="line-grid" id="lineGrid"></div>
+      </div>
+
+      <div class="card">
+        <div class="card-head">
+          <div>
+            <h2>Stations</h2>
+            <p class="hint">Also get emails for specific stations. Stations on a line you picked above are already covered.</p>
+          </div>
+        </div>
+        <div id="stationList"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <p class="summary" id="summary"></p>
+      <p class="always">Incidents and maintenance that affect every line are always emailed to all subscribers.</p>
+      <div class="actions">
+        <button class="btn" id="saveBtn">Save changes</button>
+        <button class="btn secondary" id="unsubBtn" hidden>Unsubscribe from all alerts</button>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>City Metro Transit Authority</footer>
+
+<script>
+  const $ = id => document.getElementById(id);
+  const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
+
+  let lines = [];                        // [{id,name,color,waypoints}]
+  let me    = null;                      // {email,name,isAdmin,subscription}
+  const sel = { all: false, lines: new Set(), stations: new Set() };
+  let subscribed = false;
+
+  // ── banner ────────────────────────────────────────────────
+  function banner(kind, text) {
+    const b = $('banner');
+    b.className = 'banner show ' + kind;
+    b.textContent = text;
+  }
+  function clearBanner() { $('banner').className = 'banner'; }
+
+  // ── views ─────────────────────────────────────────────────
+  function showSignedOut() {
+    $('signedIn').hidden = true;
+    $('signedOut').hidden = false;
+    $('signOutBtn').hidden = true;
+    $('adminLink').hidden = true;
+    $('who').textContent = '';
+  }
+
+  function showSignedIn() {
+    $('signedOut').hidden = true;
+    $('signedIn').hidden = false;
+    $('signOutBtn').hidden = false;
+    $('adminLink').hidden = !me.isAdmin;
+    $('who').textContent = me.name || me.email;
+    $('emailTo').textContent = me.email || 'no email on your account';
+    render();
+  }
+
+  // ── rendering ─────────────────────────────────────────────
+  function coveredBy(station) {
+    return lines.find(l => sel.lines.has(l.id) && (l.waypoints || []).includes(station));
+  }
+
+  function render() {
+    $('allToggle').checked = sel.all;
+    $('picker').classList.toggle('off', sel.all);
+    $('picker').setAttribute('aria-disabled', sel.all);
+
+    $('lineGrid').innerHTML = lines.length ? lines.map(l => `
+      <label class="line-tile" style="border-left-color:${esc(l.color)}">
+        <input type="checkbox" data-line="${esc(l.id)}" ${sel.lines.has(l.id) ? 'checked' : ''} ${sel.all ? 'disabled' : ''}>
+        <span>
+          <span class="name">${esc(l.name)}</span><br>
+          <span class="count">${(l.waypoints || []).length} stations</span>
+        </span>
+      </label>`).join('') : '<p class="empty-note">No lines are set up yet.</p>';
+
+    $('stationList').innerHTML = lines.some(l => (l.waypoints || []).length) ? lines.filter(l => (l.waypoints || []).length).map(l => `
+      <div class="station-group">
+        <h3><span class="dot" style="background:${esc(l.color)}"></span>${esc(l.name)}</h3>
+        <div class="chips">
+          ${l.waypoints.map(w => {
+            const cov = coveredBy(w);
+            const on  = sel.stations.has(w) || !!cov;
+            return `<label class="chip ${cov ? 'covered' : ''}" ${cov ? `title="Covered by ${esc(cov.name)}"` : ''}>
+              <input type="checkbox" data-station="${esc(w)}" ${on ? 'checked' : ''} ${(cov || sel.all) ? 'disabled' : ''}>
+              ${esc(w)}
+            </label>`;
+          }).join('')}
+        </div>
+      </div>`).join('') : '<p class="empty-note">No stations are set up yet.</p>';
+
+    // summary
+    const parts = [];
+    if (sel.all) {
+      $('summary').innerHTML = "You'll get emails about <strong>everything</strong>.";
+    } else {
+      const ln = lines.filter(l => sel.lines.has(l.id)).map(l => l.name);
+      const st = [...sel.stations].filter(s => !coveredBy(s));
+      if (ln.length) parts.push(ln.map(esc).join(', '));
+      if (st.length) parts.push((st.length === 1 ? 'station ' : 'stations ') + st.map(esc).join(', '));
+      $('summary').innerHTML = parts.length
+        ? `You'll get emails about <strong>${parts.join(' and ')}</strong>.`
+        : 'Nothing selected yet. Pick lines or stations, or turn on Everything.';
+    }
+
+    const nothing = !sel.all && !sel.lines.size && !sel.stations.size;
+    $('saveBtn').disabled = nothing;
+    $('saveBtn').textContent = subscribed ? 'Save changes' : 'Start alerts';
+    $('unsubBtn').hidden = !subscribed;
+  }
+
+  // ── interaction ───────────────────────────────────────────
+  $('allToggle').addEventListener('change', e => { sel.all = e.target.checked; clearBanner(); render(); });
+
+  $('lineGrid').addEventListener('change', e => {
+    const id = e.target.dataset.line;
+    if (!id) return;
+    e.target.checked ? sel.lines.add(id) : sel.lines.delete(id);
+    clearBanner(); render();
+  });
+
+  $('stationList').addEventListener('change', e => {
+    const s = e.target.dataset.station;
+    if (!s) return;
+    e.target.checked ? sel.stations.add(s) : sel.stations.delete(s);
+    clearBanner(); render();
+  });
+
+  $('selectAllLines').addEventListener('click', () => { lines.forEach(l => sel.lines.add(l.id)); clearBanner(); render(); });
+  $('clearAll').addEventListener('click', () => { sel.lines.clear(); sel.stations.clear(); clearBanner(); render(); });
+
+  $('signInBtn').addEventListener('click', () => MetroAuth.login('/portal'));
+  $('signOutBtn').addEventListener('click', () => MetroAuth.logout());
+
+  $('saveBtn').addEventListener('click', async () => {
+    const btn = $('saveBtn');
+    btn.disabled = true; btn.textContent = 'Saving…';
+    try {
+      const first = !subscribed;
+      await MetroAuth.api('/api/subscription', 'PUT', {
+        all: sel.all, lines: [...sel.lines], stations: [...sel.stations],
+      });
+      subscribed = true;
+      banner('ok', first
+        ? 'Alerts are on. A confirmation email is on its way.'
+        : 'Your notification choices are saved.');
+    } catch (e) {
+      handleError(e);
+    }
+    render();
+  });
+
+  $('unsubBtn').addEventListener('click', async () => {
+    if (!confirm('Stop all City Metro alert emails?')) return;
+    try {
+      await MetroAuth.api('/api/subscription', 'DELETE');
+      subscribed = false;
+      sel.all = false; sel.lines.clear(); sel.stations.clear();
+      banner('info', 'You are unsubscribed. Pick lines or stations any time to turn alerts back on.');
+    } catch (e) { handleError(e); }
+    render();
+  });
+
+  function handleError(e) {
+    if (e.code === 'AUTH') { showSignedOut(); banner('err', e.message); return; }
+    banner('err', e.message);
+  }
+
+  // ── start ─────────────────────────────────────────────────
+  (async function init() {
+    if (new URLSearchParams(location.search).get('unsubscribed') === '1') {
+      banner('info', 'You have been unsubscribed from City Metro alerts. Sign in any time to turn them back on.');
+      history.replaceState(null, '', location.pathname);
+    }
+
+    if (!MetroAuth.isSignedIn()) return showSignedOut();
+
+    try {
+      const [profile, lineList] = await Promise.all([
+        MetroAuth.api('/api/me'),
+        fetch(API_BASE + '/api/lines').then(r => r.json()),
+      ]);
+      me = profile; lines = lineList;
+      if (me.subscription) {
+        subscribed = true;
+        sel.all = me.subscription.all;
+        me.subscription.lines.forEach(id => sel.lines.add(id));
+        me.subscription.stations.forEach(s => sel.stations.add(s));
+      }
+      showSignedIn();
+      if (!me.email) banner('err', 'Your account has no email address. Add one in your City Metro account settings, then reload this page.');
+    } catch (e) {
+      handleError(e);
+      if (e.code !== 'AUTH') showSignedOut();
+    }
+  })();
+</script>
+</body>
+</html>
