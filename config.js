@@ -10,10 +10,10 @@ const METRO_CONFIG = {
   OIDC: {
     // Authentik issuer URL: Applications -> your app -> Provider -> "OpenID Configuration Issuer".
     // Must end with a slash and must match the Worker's OIDC_ISSUER exactly.
-    issuer:   'https://auth.citymetro.xyz/application/o/alerts/', // <-- CHANGE slug
+    issuer:   'https://auth.citymetro.xyz/application/o/live-alerts/', // <-- CHANGE slug
 
     // Authentik provider "Client ID" (public client - there is no secret in the browser)
-    clientId: 'REPLACE_WITH_AUTHENTIK_CLIENT_ID',                      // <-- CHANGE
+    clientId: '2bprQHtlY0kNeHBoQ5KT85gXTdCU5h1fmv4TR5qx',                      // <-- CHANGE
 
     scopes: 'openid profile email offline_access',
 
