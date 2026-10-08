@@ -18,7 +18,7 @@ const METRO_CONFIG = {
     // true  = "Sign out" also ends the Authentik session (recommended on shared devices;
     //         needs https://<your-site>/ registered as a Post Logout Redirect URI)
     // false = "Sign out" only clears this site
-    signOutOfSso: true,
+    signOutOfSso: false,
   },
 };
 
